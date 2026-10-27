@@ -5,6 +5,9 @@ import { Schema, model, type Model } from "mongoose";
 export const USER_ROLES = ["student", "teacher"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 
+export const AUTH_PROVIDERS = ["local", "google"] as const;
+export type AuthProvider = (typeof AUTH_PROVIDERS)[number];
+
 const SALT_ROUNDS = 12;
 const RESET_TOKEN_TTL_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -16,9 +19,12 @@ export interface IRefreshToken {
 export interface IUser {
   fullName: string;
   email: string;
-  password: string;
+  password?: string; // absent for Google-only users
   image?: string;
   role: UserRole;
+  authProvider: AuthProvider;
+  googleId?: string;
+  isEmailVerified: boolean;
   refreshTokens: IRefreshToken[];
   passwordResetTokenHash?: string;
   passwordResetExpires?: Date;
@@ -63,7 +69,13 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
     },
     password: {
       type: String,
-      required: [true, "Password is required"],
+      // Only local users need a password
+      required: [
+        function (this: { authProvider?: string }) {
+          return this.authProvider === "local";
+        },
+        "Password is required",
+      ],
       select: false,
     },
     image: { type: String, trim: true },
@@ -72,6 +84,13 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
       enum: USER_ROLES,
       default: "student",
     },
+    authProvider: {
+      type: String,
+      enum: AUTH_PROVIDERS,
+      default: "local",
+    },
+    googleId: { type: String, unique: true, sparse: true },
+    isEmailVerified: { type: Boolean, default: false },
     refreshTokens: { type: [refreshTokenSchema], default: [], select: false },
     passwordResetTokenHash: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
@@ -96,7 +115,7 @@ const userSchema = new Schema<IUser, UserModel, IUserMethods>(
 
 // Hash the password whenever it is new or changed
 userSchema.pre("save", async function () {
-  if (!this.isModified("password")) return;
+  if (!this.isModified("password") || !this.password) return;
 
   this.password = await bcrypt.hash(this.password, SALT_ROUNDS);
 
@@ -107,6 +126,8 @@ userSchema.pre("save", async function () {
 });
 
 userSchema.method("comparePassword", function (candidate: string) {
+  // Google-only users have no password hash
+  if (!this.password) return Promise.resolve(false);
   return bcrypt.compare(candidate, this.password);
 });
 
