@@ -15,8 +15,14 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z
     .string()
     .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
-  JWT_ACCESS_EXPIRES_IN: z.string().default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z.string().default("7d"),
+  JWT_ACCESS_EXPIRES_IN: z
+    .string()
+    .regex(/^\d+[smhd]$/, "Use a format like 15m, 12h, 7d")
+    .default("15m"),
+  JWT_REFRESH_EXPIRES_IN: z
+    .string()
+    .regex(/^\d+[smhd]$/, "Use a format like 15m, 12h, 7d")
+    .default("7d"),
 
   IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
 });
