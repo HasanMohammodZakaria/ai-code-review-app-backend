@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import cookieParser from "cookie-parser";
 import { env } from "./config/env";
+import { errorHandler, notFoundHandler } from "./middlewares/error.middleware";
 
 const app = express();
 
@@ -19,9 +20,10 @@ app.get("/health", (_req, res) => {
   res.json({ status: "ok", time: new Date().toISOString() });
 });
 
-// 404 handler (must be after all routes)
-app.use((_req, res) => {
-  res.status(404).json({ message: "Route not found" });
-});
+// API routes will be mounted here (e.g. app.use("/api", routes))
+
+// 404 and error handlers (must be last, in this order)
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 export default app;
