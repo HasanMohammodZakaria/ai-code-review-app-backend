@@ -3,6 +3,7 @@ import { ZodError } from "zod";
 import mongoose from "mongoose";
 import { ApiError } from "../utils/ApiError";
 import { env } from "../config/env";
+import multer from "multer";
 
 export const notFoundHandler: RequestHandler = (req, _res, next) => {
   next(ApiError.notFound(`Route not found: ${req.method} ${req.originalUrl}`));
@@ -24,6 +25,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
       field: issue.path.join("."),
       message: issue.message,
     }));
+  } else if (err instanceof multer.MulterError) {
+    statusCode = 400;
+    message =
+      err.code === "LIMIT_FILE_SIZE"
+        ? "Image is too large (max 2 MB)"
+        : `Upload error: ${err.message}`;
   } else if (err instanceof mongoose.Error.ValidationError) {
     statusCode = 400;
     message = "Validation failed";
