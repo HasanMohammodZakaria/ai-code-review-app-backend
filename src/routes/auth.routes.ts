@@ -7,6 +7,7 @@ import {
   register,
   forgotPasswordHandler,
   resetPasswordHandler,
+  googleLoginHandler,
 } from "../controllers/auth.controller";
 import { uploadImage } from "../middlewares/upload.middleware";
 import { validate } from "../middlewares/validate.middleware";
@@ -15,6 +16,7 @@ import {
   registerSchema,
   forgotPasswordSchema,
   resetPasswordSchema,
+  googleLoginSchema,
 } from "../validators/auth.validator";
 import { protect } from "../middlewares/auth.middleware";
 
@@ -36,5 +38,6 @@ router.post(
   validate(resetPasswordSchema),
   resetPasswordHandler,
 );
+router.post("/google", validate(googleLoginSchema), googleLoginHandler);
 
 export default router;

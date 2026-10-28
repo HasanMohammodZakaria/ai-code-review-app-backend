@@ -41,7 +41,7 @@ export interface IUserMethods {
   changedPasswordAfter(jwtIssuedAt: number): boolean;
 }
 
-type UserModel = Model<IUser, Record<string, never>, IUserMethods>;
+type UserModel = Model<IUser, {}, IUserMethods>;
 
 const refreshTokenSchema = new Schema<IRefreshToken>(
   {

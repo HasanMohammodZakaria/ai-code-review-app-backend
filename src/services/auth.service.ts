@@ -1,5 +1,6 @@
-import type { Request } from "express";
+import type { HydratedDocument } from "mongoose";
 import { User } from "../models/user.model";
+import type { IUser, IUserMethods } from "../models/user.model";
 import { ApiError } from "../utils/ApiError";
 import {
   hashToken,
@@ -8,18 +9,22 @@ import {
   verifyRefreshToken,
 } from "../utils/token";
 import { uploadToImgbb } from "./imgbb.service";
+import { sendPasswordResetEmail } from "./email.service";
+import { verifyGoogleIdToken } from "./google.service";
 import type {
   LoginInput,
   RegisterInput,
   ForgotPasswordInput,
   ResetPasswordInput,
+  GoogleLoginInput,
 } from "../validators/auth.validator";
-import { sendPasswordResetEmail } from "./email.service";
+
+type UserDoc = HydratedDocument<IUser, IUserMethods>;
 
 const MAX_DEVICES = 5; // keep at most 5 active refresh tokens per user
 
 // Issues access + refresh tokens and stores the refresh token hash
-async function issueTokens(user: InstanceType<typeof User>) {
+async function issueTokens(user: UserDoc) {
   const payload = { sub: user.id as string, role: user.role };
   const accessToken = signAccessToken(payload);
   const refreshToken = signRefreshToken(payload);
@@ -47,23 +52,23 @@ export async function registerUser(
   const image = file ? await uploadToImgbb(file) : undefined;
 
   // role is never taken from the client: new users are always students
-  const user = await User.create({
+  const user = (await User.create({
     fullName: input.fullName,
     email: input.email,
     password: input.password,
     image,
     role: "student",
     authProvider: "local",
-  });
+  })) as UserDoc;
 
   const tokens = await issueTokens(user);
   return { user, ...tokens };
 }
 
 export async function loginUser(input: LoginInput) {
-  const user = await User.findOne({ email: input.email }).select(
+  const user = (await User.findOne({ email: input.email }).select(
     "+password +refreshTokens",
-  );
+  )) as UserDoc | null;
 
   // Same message for "no user" and "wrong password" (no account enumeration)
   const invalid = ApiError.unauthorized("Invalid email or password");
@@ -88,7 +93,9 @@ export async function refreshSession(oldRefreshToken: string | undefined) {
   if (!oldRefreshToken) throw ApiError.unauthorized("Refresh token missing");
 
   const decoded = verifyRefreshToken(oldRefreshToken);
-  const user = await User.findById(decoded.sub).select("+refreshTokens");
+  const user = (await User.findById(decoded.sub).select(
+    "+refreshTokens",
+  )) as UserDoc | null;
   if (!user) throw ApiError.unauthorized("Invalid refresh token");
 
   const oldHash = hashToken(oldRefreshToken);
@@ -127,7 +134,9 @@ export async function logoutUser(refreshToken: string | undefined) {
 }
 
 export async function forgotPassword(input: ForgotPasswordInput) {
-  const user = await User.findOne({ email: input.email });
+  const user = (await User.findOne({
+    email: input.email,
+  })) as UserDoc | null;
 
   // Google-only users have no password; unknown emails are ignored.
   // The controller always returns the same message either way.
@@ -150,10 +159,10 @@ export async function forgotPassword(input: ForgotPasswordInput) {
 export async function resetPassword(input: ResetPasswordInput) {
   const hashedToken = hashToken(input.token);
 
-  const user = await User.findOne({
+  const user = (await User.findOne({
     passwordResetTokenHash: hashedToken,
     passwordResetExpires: { $gt: new Date() },
-  }).select("+refreshTokens");
+  }).select("+refreshTokens")) as UserDoc | null;
 
   if (!user) throw ApiError.badRequest("Reset link is invalid or has expired");
 
@@ -162,4 +171,40 @@ export async function resetPassword(input: ResetPasswordInput) {
   user.passwordResetExpires = undefined;
   user.refreshTokens = []; // log out every device
   await user.save();
+}
+
+export async function googleLogin(input: GoogleLoginInput) {
+  const profile = await verifyGoogleIdToken(input.idToken);
+
+  // 1) Already linked by googleId, 2) same verified email, 3) brand new user
+  let user = (await User.findOne({ googleId: profile.googleId }).select(
+    "+refreshTokens",
+  )) as UserDoc | null;
+
+  if (!user) {
+    user = (await User.findOne({ email: profile.email }).select(
+      "+refreshTokens",
+    )) as UserDoc | null;
+
+    if (user) {
+      // Account linking: Google verified ownership of this email
+      user.googleId = profile.googleId;
+      user.isEmailVerified = true;
+      if (!user.image && profile.image) user.image = profile.image;
+      await user.save();
+    } else {
+      user = (await User.create({
+        fullName: profile.fullName,
+        email: profile.email,
+        image: profile.image,
+        role: "student", // never taken from the client
+        authProvider: "google",
+        googleId: profile.googleId,
+        isEmailVerified: true,
+      })) as UserDoc;
+    }
+  }
+
+  const tokens = await issueTokens(user);
+  return { user, ...tokens };
 }

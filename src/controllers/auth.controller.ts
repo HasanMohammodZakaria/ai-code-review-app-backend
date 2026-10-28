@@ -6,6 +6,7 @@ import {
   registerUser,
   forgotPassword,
   resetPassword,
+  googleLogin,
 } from "../services/auth.service";
 import {
   clearRefreshCookieOptions,
@@ -79,5 +80,16 @@ export async function resetPasswordHandler(req: Request, res: Response) {
   res.json({
     success: true,
     message: "Password reset successful. Please log in with your new password",
+  });
+}
+
+export async function googleLoginHandler(req: Request, res: Response) {
+  const { user, accessToken, refreshToken } = await googleLogin(req.body);
+
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions);
+  res.json({
+    success: true,
+    message: "Google login successful",
+    data: { user, accessToken },
   });
 }
