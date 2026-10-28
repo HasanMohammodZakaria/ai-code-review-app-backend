@@ -76,3 +76,46 @@ export async function loginUser(input: LoginInput) {
   const tokens = await issueTokens(user);
   return { user, ...tokens };
 }
+
+// Rotation: every refresh invalidates the old token and issues a new pair
+export async function refreshSession(oldRefreshToken: string | undefined) {
+  if (!oldRefreshToken) throw ApiError.unauthorized("Refresh token missing");
+
+  const decoded = verifyRefreshToken(oldRefreshToken);
+  const user = await User.findById(decoded.sub).select("+refreshTokens");
+  if (!user) throw ApiError.unauthorized("Invalid refresh token");
+
+  const oldHash = hashToken(oldRefreshToken);
+  const stored = (user.refreshTokens ?? []).find(
+    (t) => t.tokenHash === oldHash,
+  );
+
+  if (!stored || stored.expiresAt < new Date()) {
+    // Possible token reuse (theft): revoke every session of this user
+    user.refreshTokens = [];
+    await user.save();
+    throw ApiError.unauthorized("Invalid refresh token. Please log in again");
+  }
+
+  // Remove the used token, then issue a fresh pair
+  user.refreshTokens = user.refreshTokens.filter(
+    (t) => t.tokenHash !== oldHash,
+  );
+  const tokens = await issueTokens(user);
+  return { user, ...tokens };
+}
+
+export async function logoutUser(refreshToken: string | undefined) {
+  if (!refreshToken) return; // nothing to revoke
+
+  try {
+    const decoded = verifyRefreshToken(refreshToken);
+    const hash = hashToken(refreshToken);
+    await User.updateOne(
+      { _id: decoded.sub },
+      { $pull: { refreshTokens: { tokenHash: hash } } },
+    );
+  } catch {
+    // invalid/expired token: the cookie is cleared anyway
+  }
+}
