@@ -8,7 +8,13 @@ import {
   verifyRefreshToken,
 } from "../utils/token";
 import { uploadToImgbb } from "./imgbb.service";
-import type { LoginInput, RegisterInput } from "../validators/auth.validator";
+import type {
+  LoginInput,
+  RegisterInput,
+  ForgotPasswordInput,
+  ResetPasswordInput,
+} from "../validators/auth.validator";
+import { sendPasswordResetEmail } from "./email.service";
 
 const MAX_DEVICES = 5; // keep at most 5 active refresh tokens per user
 
@@ -118,4 +124,42 @@ export async function logoutUser(refreshToken: string | undefined) {
   } catch {
     // invalid/expired token: the cookie is cleared anyway
   }
+}
+
+export async function forgotPassword(input: ForgotPasswordInput) {
+  const user = await User.findOne({ email: input.email });
+
+  // Google-only users have no password; unknown emails are ignored.
+  // The controller always returns the same message either way.
+  if (!user || user.authProvider !== "local") return;
+
+  const rawToken = user.createPasswordResetToken();
+  await user.save({ validateBeforeSave: false });
+
+  try {
+    await sendPasswordResetEmail(user.email, user.fullName, rawToken);
+  } catch (error) {
+    // Do not keep a token the user never received
+    user.passwordResetTokenHash = undefined;
+    user.passwordResetExpires = undefined;
+    await user.save({ validateBeforeSave: false });
+    console.error("❌ Failed to send reset email:", error);
+  }
+}
+
+export async function resetPassword(input: ResetPasswordInput) {
+  const hashedToken = hashToken(input.token);
+
+  const user = await User.findOne({
+    passwordResetTokenHash: hashedToken,
+    passwordResetExpires: { $gt: new Date() },
+  }).select("+refreshTokens");
+
+  if (!user) throw ApiError.badRequest("Reset link is invalid or has expired");
+
+  user.password = input.password; // pre("save") hashes it and sets passwordChangedAt
+  user.passwordResetTokenHash = undefined;
+  user.passwordResetExpires = undefined;
+  user.refreshTokens = []; // log out every device
+  await user.save();
 }

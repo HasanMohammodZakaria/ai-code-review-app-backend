@@ -25,6 +25,12 @@ const envSchema = z.object({
     .default("7d"),
 
   IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
+
+  SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
+  SMTP_PORT: z.coerce.number().default(2525),
+  SMTP_USER: z.string().min(1, "SMTP_USER is required"),
+  SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
+  EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
 });
 
 const parsed = envSchema.safeParse(process.env);

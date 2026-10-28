@@ -4,6 +4,8 @@ import {
   logoutUser,
   refreshSession,
   registerUser,
+  forgotPassword,
+  resetPassword,
 } from "../services/auth.service";
 import {
   clearRefreshCookieOptions,
@@ -58,4 +60,24 @@ export async function logout(req: Request, res: Response) {
 
 export async function me(req: Request, res: Response) {
   res.json({ success: true, data: { user: req.user } });
+}
+
+export async function forgotPasswordHandler(req: Request, res: Response) {
+  await forgotPassword(req.body);
+
+  // Same response whether or not the email exists (no account enumeration)
+  res.json({
+    success: true,
+    message: "If an account with that email exists, a reset link has been sent",
+  });
+}
+
+export async function resetPasswordHandler(req: Request, res: Response) {
+  await resetPassword(req.body);
+
+  res.clearCookie(REFRESH_COOKIE_NAME, clearRefreshCookieOptions);
+  res.json({
+    success: true,
+    message: "Password reset successful. Please log in with your new password",
+  });
 }
