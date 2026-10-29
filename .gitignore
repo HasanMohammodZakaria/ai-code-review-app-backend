@@ -2,3 +2,4 @@ node_modules
 dist
 .env
 docs/notes/
+src/scripts/lint-test.ts
