@@ -12,6 +12,10 @@ import {
   createProjectSchema,
   updateProjectSchema,
 } from "../validators/project.validator";
+import {
+  create as createReviewHandler,
+  list as listReviewsHandler,
+} from "../controllers/review.controller";
 
 const router = Router();
 
@@ -22,5 +26,7 @@ router.get("/", list);
 router.get("/:id", detail);
 router.patch("/:id", validate(updateProjectSchema), update);
 router.delete("/:id", remove);
+router.post("/:id/reviews", createReviewHandler);
+router.get("/:id/reviews", listReviewsHandler);
 
 export default router;
