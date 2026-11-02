@@ -1,6 +1,11 @@
 import "dotenv/config";
 import { z } from "zod";
 
+const optionalKey = z
+  .string()
+  .optional()
+  .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(["development", "production", "test"])
@@ -33,6 +38,21 @@ const envSchema = z.object({
   EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
 
   GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
+
+  GEMINI_API_KEY: optionalKey,
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+
+  GROQ_API_KEY: optionalKey,
+  GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
+
+  GITHUB_MODELS_TOKEN: optionalKey,
+  GITHUB_MODEL: z.string().default("gpt-4.1-mini"),
+
+  CLOUDFLARE_ACCOUNT_ID: optionalKey,
+  CLOUDFLARE_API_TOKEN: optionalKey,
+  CLOUDFLARE_MODEL: z
+    .string()
+    .default("@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
 });
 
 const parsed = envSchema.safeParse(process.env);
