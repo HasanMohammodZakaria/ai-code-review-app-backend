@@ -3,6 +3,7 @@ import {
   createProject,
   deleteProject,
   getProject,
+  importGithubProject,
   listProjects,
   updateProject,
 } from "../services/project.service";
@@ -20,6 +21,15 @@ export async function create(req: Request, res: Response) {
   res
     .status(201)
     .json({ success: true, message: "Project created", data: { project } });
+}
+
+export async function importGithub(req: Request, res: Response) {
+  const { project, skipped } = await importGithubProject(actor(req), req.body);
+  res.status(201).json({
+    success: true,
+    message: "Project imported from GitHub",
+    data: { project, skipped },
+  });
 }
 
 export async function list(req: Request, res: Response) {

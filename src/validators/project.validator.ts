@@ -36,5 +36,14 @@ export const updateProjectSchema = z.object({
     ),
 });
 
+export const importGithubSchema = z.object({
+  body: z.object({
+    title: z.string().trim().min(2).max(120),
+    description: z.string().trim().max(1000).optional(),
+    repoUrl: z.string().trim().min(1, "Repository URL is required").max(300),
+  }),
+});
+
 export type CreateProjectInput = z.infer<typeof createProjectSchema>["body"];
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>["body"];
+export type ImportGithubInput = z.infer<typeof importGithubSchema>["body"];

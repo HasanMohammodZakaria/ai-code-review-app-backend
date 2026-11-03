@@ -45,14 +45,17 @@ const envSchema = z.object({
   GROQ_API_KEY: optionalKey,
   GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
 
-  GITHUB_MODELS_TOKEN: optionalKey,
-  GITHUB_MODEL: z.string().default("gpt-4.1-mini"),
+  // GITHUB_MODELS_TOKEN: optionalKey,
+  // GITHUB_MODEL: z.string().default("gpt-4.1-mini"),
 
   CLOUDFLARE_ACCOUNT_ID: optionalKey,
   CLOUDFLARE_API_TOKEN: optionalKey,
   CLOUDFLARE_MODEL: z
     .string()
     .default("@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
+  // Optional: raises the GitHub REST API limit (60 -> 5000 requests/hour)
+  // when importing public repos. Needs no scopes.
+  GITHUB_TOKEN: optionalKey,
 });
 
 const parsed = envSchema.safeParse(process.env);

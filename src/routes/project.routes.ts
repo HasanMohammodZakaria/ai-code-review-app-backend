@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   create,
   detail,
+  importGithub,
   list,
   remove,
   update,
@@ -10,6 +11,7 @@ import { protect } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import {
   createProjectSchema,
+  importGithubSchema,
   updateProjectSchema,
 } from "../validators/project.validator";
 import {
@@ -22,6 +24,7 @@ const router = Router();
 router.use(protect); // every project route needs a logged-in user
 
 router.post("/", validate(createProjectSchema), create);
+router.post("/import-github", validate(importGithubSchema), importGithub);
 router.get("/", list);
 router.get("/:id", detail);
 router.patch("/:id", validate(updateProjectSchema), update);

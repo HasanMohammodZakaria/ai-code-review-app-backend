@@ -3,8 +3,10 @@ import { Project, type IProjectFile } from "../models/project.model";
 import type { UserRole } from "../models/user.model";
 import { ApiError } from "../utils/ApiError";
 import { detectLanguage } from "./lint/language";
+import { fetchGithubRepoFiles } from "./github-import.service";
 import type {
   CreateProjectInput,
+  ImportGithubInput,
   UpdateProjectInput,
 } from "../validators/project.validator";
 
@@ -47,6 +49,26 @@ export async function createProject(actor: Actor, input: CreateProjectInput) {
     sourceType: "paste",
     files: normalizeFiles(input.files),
   });
+}
+
+// Fetches the public repo's source files from GitHub and saves them in the
+// same `files` shape as a pasted project, so reviews work identically.
+export async function importGithubProject(
+  actor: Actor,
+  input: ImportGithubInput,
+) {
+  const { repoUrl, files, skipped } = await fetchGithubRepoFiles(input.repoUrl);
+
+  const project = await Project.create({
+    owner: actor.id,
+    title: input.title,
+    description: input.description,
+    sourceType: "github",
+    repoUrl,
+    files,
+  });
+
+  return { project, skipped };
 }
 
 export async function listProjects(actor: Actor, page: number, limit: number) {

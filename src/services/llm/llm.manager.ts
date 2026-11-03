@@ -46,12 +46,12 @@ const CONFIGS: ProviderConfig[] = [
     apiKey: env.CLOUDFLARE_ACCOUNT_ID ? env.CLOUDFLARE_API_TOKEN : undefined,
     model: env.CLOUDFLARE_MODEL,
   },
-  {
-    name: "github",
-    baseUrl: "https://models.github.ai/inference",
-    apiKey: env.GITHUB_MODELS_TOKEN,
-    model: env.GITHUB_MODEL,
-  },
+  // {
+  //   name: "github",
+  //   baseUrl: "https://models.github.ai/inference",
+  //   apiKey: env.GITHUB_MODELS_TOKEN,
+  //   model: env.GITHUB_MODEL,
+  // },
 ];
 
 // Providers without a key are skipped

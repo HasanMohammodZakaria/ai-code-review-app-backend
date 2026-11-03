@@ -29,4 +29,9 @@ export class ApiError extends Error {
   static conflict(message = "Conflict") {
     return new ApiError(409, message);
   }
+
+  // An upstream service (e.g. GitHub) failed or could not be reached
+  static badGateway(message = "Bad gateway") {
+    return new ApiError(502, message);
+  }
 }
