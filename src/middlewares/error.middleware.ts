@@ -48,6 +48,14 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   ) {
     statusCode = 409;
     message = "Duplicate value. This record already exists";
+  } else if (
+    typeof err === "object" &&
+    err !== null &&
+    (err as { type?: string }).type === "entity.too.large"
+  ) {
+    // express.json() rejected a body above its size limit
+    statusCode = 413;
+    message = "Request body is too large";
   } else if (err instanceof SyntaxError && "body" in err) {
     statusCode = 400;
     message = "Invalid JSON body";

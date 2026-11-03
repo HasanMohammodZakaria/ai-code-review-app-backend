@@ -12,6 +12,10 @@ import {
 import { uploadImage } from "../middlewares/upload.middleware";
 import { validate } from "../middlewares/validate.middleware";
 import {
+  accountLimiter,
+  loginLimiter,
+} from "../middlewares/rate-limit.middleware";
+import {
   loginSchema,
   registerSchema,
   forgotPasswordSchema,
@@ -22,22 +26,35 @@ import { protect } from "../middlewares/auth.middleware";
 
 const router = Router();
 
-// multer runs first (parses multipart/form-data), then validation
-router.post("/register", uploadImage, validate(registerSchema), register);
-router.post("/login", validate(loginSchema), login);
+// limiter first, then multer (parses multipart/form-data), then validation
+router.post(
+  "/register",
+  accountLimiter,
+  uploadImage,
+  validate(registerSchema),
+  register,
+);
+router.post("/login", loginLimiter, validate(loginSchema), login);
 router.post("/refresh", refresh);
 router.post("/logout", logout);
 router.get("/me", protect, me);
 router.post(
   "/forgot-password",
+  accountLimiter,
   validate(forgotPasswordSchema),
   forgotPasswordHandler,
 );
 router.post(
   "/reset-password",
+  accountLimiter,
   validate(resetPasswordSchema),
   resetPasswordHandler,
 );
-router.post("/google", validate(googleLoginSchema), googleLoginHandler);
+router.post(
+  "/google",
+  loginLimiter,
+  validate(googleLoginSchema),
+  googleLoginHandler,
+);
 
 export default router;
