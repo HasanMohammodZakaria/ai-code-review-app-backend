@@ -5,6 +5,7 @@ import {
   importGithub,
   list,
   remove,
+  stats,
   update,
 } from "../controllers/project.controller";
 import { protect } from "../middlewares/auth.middleware";
@@ -26,6 +27,7 @@ router.use(protect); // every project route needs a logged-in user
 router.post("/", validate(createProjectSchema), create);
 router.post("/import-github", validate(importGithubSchema), importGithub);
 router.get("/", list);
+router.get("/stats", stats); // must stay above "/:id", or "stats" is read as an id
 router.get("/:id", detail);
 router.patch("/:id", validate(updateProjectSchema), update);
 router.delete("/:id", remove);

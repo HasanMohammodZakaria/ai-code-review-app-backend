@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { Project, type IProjectFile } from "../models/project.model";
+import { Review } from "../models/review.model";
 import type { UserRole } from "../models/user.model";
 import { ApiError } from "../utils/ApiError";
 import { detectLanguage } from "./lint/language";
@@ -115,5 +116,7 @@ export async function deleteProject(actor: Actor, id: string) {
   if (!isOwner)
     throw ApiError.forbidden("Only the owner can delete this project");
 
+  // Reviews belong to the project: remove them first so none are left behind
+  await Review.deleteMany({ project: project._id });
   await project.deleteOne();
 }

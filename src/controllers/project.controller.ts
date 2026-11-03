@@ -7,6 +7,7 @@ import {
   listProjects,
   updateProject,
 } from "../services/project.service";
+import { getMyOverview } from "../services/student-stats.service";
 
 // protect middleware guarantees req.user exists
 const actor = (req: Request) => ({
@@ -30,6 +31,11 @@ export async function importGithub(req: Request, res: Response) {
     message: "Project imported from GitHub",
     data: { project, skipped },
   });
+}
+
+export async function stats(req: Request, res: Response) {
+  const data = await getMyOverview(actor(req).id);
+  res.json({ success: true, data });
 }
 
 export async function list(req: Request, res: Response) {
