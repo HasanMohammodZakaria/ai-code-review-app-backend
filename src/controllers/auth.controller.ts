@@ -7,6 +7,8 @@ import {
   forgotPassword,
   resetPassword,
   googleLogin,
+  changePassword,
+  updateProfile,
 } from "../services/auth.service";
 import {
   clearRefreshCookieOptions,
@@ -61,6 +63,31 @@ export async function logout(req: Request, res: Response) {
 
 export async function me(req: Request, res: Response) {
   res.json({ success: true, data: { user: req.user } });
+}
+
+export async function updateProfileHandler(req: Request, res: Response) {
+  const user = await updateProfile(req.user!.id as string, req.body, req.file);
+
+  res.json({
+    success: true,
+    message: "Profile updated",
+    data: { user },
+  });
+}
+
+export async function changePasswordHandler(req: Request, res: Response) {
+  const { user, accessToken, refreshToken } = await changePassword(
+    req.user!.id as string,
+    req.body,
+  );
+
+  // Other devices are logged out; this one continues with the new pair
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions);
+  res.json({
+    success: true,
+    message: "Password changed. Other devices were logged out",
+    data: { user, accessToken },
+  });
 }
 
 export async function forgotPasswordHandler(req: Request, res: Response) {

@@ -45,6 +45,17 @@ export const accountLimiter = limiter({
   message: "Too many attempts, please try again in an hour",
 });
 
+// Change password: stops someone with a stolen access token from guessing the
+// current password. Per logged-in user (the route runs after `protect`),
+// and only failed attempts count.
+export const passwordLimiter = limiter({
+  windowMs: 15 * MINUTE,
+  limit: 10,
+  skipSuccessfulRequests: true,
+  message: "Too many password attempts, please try again in 15 minutes",
+  keyGenerator: (req) => String(req.user?.id ?? "anonymous"),
+});
+
 // Run Review and Import GitHub use LLM quota and GitHub requests, so the
 // limit is per logged-in user (these routes always run after `protect`)
 export const reviewLimiter = limiter({

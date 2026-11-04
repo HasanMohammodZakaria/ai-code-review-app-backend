@@ -17,6 +17,8 @@ import type {
   ForgotPasswordInput,
   ResetPasswordInput,
   GoogleLoginInput,
+  ChangePasswordInput,
+  UpdateProfileInput,
 } from "../validators/auth.validator";
 
 type UserDoc = HydratedDocument<IUser, IUserMethods>;
@@ -171,6 +173,56 @@ export async function resetPassword(input: ResetPasswordInput) {
   user.passwordResetExpires = undefined;
   user.refreshTokens = []; // log out every device
   await user.save();
+}
+
+// Logged-in password change. Every other device is logged out, but this
+// device gets a fresh token pair so the user stays signed in.
+export async function changePassword(
+  userId: string,
+  input: ChangePasswordInput,
+) {
+  const user = (await User.findById(userId).select(
+    "+password +refreshTokens",
+  )) as UserDoc | null;
+  if (!user) throw ApiError.unauthorized("User no longer exists");
+
+  if (user.authProvider === "google") {
+    throw ApiError.badRequest(
+      "This account uses Google sign-in and has no password to change",
+    );
+  }
+
+  // 400, not 401: a 401 would make the client think the access token expired
+  const ok = await user.comparePassword(input.currentPassword);
+  if (!ok) throw ApiError.badRequest("Current password is incorrect");
+
+  user.password = input.newPassword; // pre("save") hashes it and sets passwordChangedAt
+  user.refreshTokens = []; // revoke every session
+
+  // issueTokens saves the user, so the new password and the new session
+  // are written together in one save
+  const tokens = await issueTokens(user);
+  return { user, ...tokens };
+}
+
+// Updates the name and/or the profile image. Email and role cannot change.
+export async function updateProfile(
+  userId: string,
+  input: UpdateProfileInput,
+  file?: Express.Multer.File,
+) {
+  if (input.fullName === undefined && !file) {
+    throw ApiError.badRequest("Provide a new name or a new image");
+  }
+
+  const user = (await User.findById(userId)) as UserDoc | null;
+  if (!user) throw ApiError.unauthorized("User no longer exists");
+
+  if (input.fullName !== undefined) user.fullName = input.fullName;
+  if (file) user.image = await uploadToImgbb(file);
+
+  await user.save();
+  return user;
 }
 
 export async function googleLogin(input: GoogleLoginInput) {
