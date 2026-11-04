@@ -35,7 +35,6 @@ Built with Node.js, Express 5, TypeScript and MongoDB.
   - [Testing](#testing)
   - [Deployment](#deployment)
   - [Known limitations and roadmap](#known-limitations-and-roadmap)
-  - [License](#license)
 
 ---
 
@@ -43,6 +42,7 @@ Built with Node.js, Express 5, TypeScript and MongoDB.
 
 **Students**
 - Register, log in, refresh the session, reset a forgotten password, or sign in with Google
+- Change their password and edit their name and profile photo
 - Create a project by pasting code, or import a public GitHub repository
 - Run an AI code review on any of their projects and re-run it as the code improves
 - See issues by severity, each with an explanation and a suggested fix
@@ -249,6 +249,8 @@ All routes are prefixed with `/api`. Routes marked 🔒 need `Authorization: Bea
 | POST | `/auth/refresh` | New access token from the refresh cookie (the old refresh token is rotated) |
 | POST | `/auth/logout` | Revoke the current refresh token and clear the cookie |
 | GET | `/auth/me` 🔒 | The current user |
+| PATCH | `/auth/me` 🔒 | Update `fullName` and/or `image` (`multipart/form-data`). Email and role cannot be changed |
+| PATCH | `/auth/password` 🔒 | Change the password with `{ currentPassword, newPassword }`. Other devices are logged out and this one receives a new token pair |
 | POST | `/auth/forgot-password` | Email a reset link. The response is the same whether or not the email exists |
 | POST | `/auth/reset-password` | Set a new password with `{ token, password }` |
 | POST | `/auth/google` | Sign in with a Google `idToken` |
@@ -397,6 +399,7 @@ Stack traces are only included when `NODE_ENV=development`.
 - **Storage:** only the SHA-256 hash of each refresh token is stored, with a maximum of 5 active devices per user.
 - **Passwords:** 8 to 72 characters with at least one letter and one number, hashed with bcrypt (12 rounds). Changing the password revokes all refresh tokens and invalidates access tokens issued before the change.
 - **Password reset:** a random one-time token, emailed as a link to the client. Only its hash is stored, and it expires after 15 minutes.
+- **Password change (logged in):** the current password is required. All refresh tokens are revoked, so other devices are logged out, and the current device receives a new token pair so the user stays signed in. A wrong current password returns 400 (not 401, so a client does not mistake it for an expired token). Google-only accounts have no password to change.
 - **Google sign-in:** the client sends a Google `idToken`, the server verifies it, links the account when the verified email already exists, and then issues its own tokens. Google users are always students.
 - **Roles:** the `role` field is never accepted from the client.
 
@@ -444,6 +447,7 @@ Students receive **404** instead of 403 for other people's data, so they cannot 
 | Whole API | 300 requests per 15 minutes |
 | Login and Google sign-in | 10 failed attempts per 15 minutes |
 | Register, forgot and reset password | 10 per hour |
+| Change password | 10 failed attempts per 15 minutes, per user |
 | Run review | 30 per hour, per user |
 | Import GitHub | 15 per hour, per user |
 
@@ -469,6 +473,7 @@ Recognized languages: JavaScript, TypeScript, Python, Java, Go, Ruby, PHP, C, C+
 The API was verified end to end with a Postman collection. The verified scenarios include:
 
 - Registration, login, refresh, logout, password reset and Google sign-in
+- Password change (old password rejected, new one accepted, other sessions revoked) and profile update (name, image, and that email and role cannot be changed)
 - Token protection: every private route returns 401 without a token, and the open routes stay open
 - Pasted and imported projects, review runs, score history and review detail
 - Provider fallback, and the review modes `ai+lint` and `ai-only`
@@ -504,7 +509,7 @@ Planned setup: the API on a Node host (Render or Railway), MongoDB Atlas for the
 - A review looks at the first 40,000 characters of code. Larger projects and large imported repositories are only partly reviewed, and the skipped files are listed in `filesSkipped`
 - Only public GitHub repositories can be imported, only the default branch, and only the first 20 supported files
 - Only JavaScript and TypeScript are linted
-- Email verification is not implemented (`isEmailVerified` is only set for Google users)
+- Email verification is not implemented (`isEmailVerified` is only set for Google users), and the email address cannot be changed
 - Rate limits and provider cooldowns live in memory, which is fine for a single server instance
 - The teacher student list is sorted and paginated in memory after aggregation, which suits a class-sized group
 - Reviews run inside the request instead of in a background job
@@ -516,10 +521,3 @@ Planned setup: the API on a Node host (Render or Railway), MongoDB Atlas for the
 - Background review jobs with polling
 - Class or batch grouping for teachers
 - Shared store for rate limits when running several server instances
-
-
----
-
-## License
-
-Released under the [MIT License](LICENSE).
