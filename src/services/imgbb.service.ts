@@ -6,6 +6,9 @@ interface ImgbbResponse {
   data?: { url: string };
 }
 
+/** A 2 MB photo becomes about 2.7 MB of base64, so a slow upload needs more than 15 seconds */
+const UPLOAD_TIMEOUT_MS = 45_000;
+
 export async function uploadToImgbb(
   file: Express.Multer.File,
 ): Promise<string> {
@@ -19,19 +22,25 @@ export async function uploadToImgbb(
       {
         method: "POST",
         body: form,
-        signal: AbortSignal.timeout(15_000),
+        signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
       },
     );
-  } catch {
+  } catch (error) {
+    // Logs the real reason (timeout, DNS, connection reset) and its cause
+    console.error("ImgBB upload failed:", error);
     throw new ApiError(502, "Image upload service is unreachable");
   }
 
   if (!response.ok) {
+    // ImgBB answered, so say what it answered (for example an invalid API key)
+    const detail = await response.text().catch(() => "");
+    console.error("ImgBB responded with", response.status, detail);
     throw new ApiError(502, "Image upload failed");
   }
 
   const json = (await response.json()) as ImgbbResponse;
   if (!json.success || !json.data?.url) {
+    console.error("ImgBB returned an unexpected body:", json);
     throw new ApiError(502, "Image upload failed");
   }
 
