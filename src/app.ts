@@ -8,6 +8,9 @@ import routes from "./routes";
 
 const app = express();
 
+// Render runs behind a proxy: needed for correct client IPs (rate limiting)
+app.set("trust proxy", 1);
+
 // Security headers and CORS
 app.use(helmet());
 app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
