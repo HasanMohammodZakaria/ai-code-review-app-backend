@@ -6,57 +6,72 @@ const optionalKey = z
   .optional()
   .transform((v) => (v && v.trim() !== "" ? v.trim() : undefined));
 
-const envSchema = z.object({
-  NODE_ENV: z
-    .enum(["development", "production", "test"])
-    .default("development"),
-  PORT: z.coerce.number().default(5000),
-  MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
-  CLIENT_URL: z.url().default("http://localhost:5173"),
+const envSchema = z
+  .object({
+    NODE_ENV: z
+      .enum(["development", "production", "test"])
+      .default("development"),
+    PORT: z.coerce.number().default(5000),
+    MONGODB_URI: z.string().min(1, "MONGODB_URI is required"),
+    CLIENT_URL: z.url().default("http://localhost:5173"),
 
-  JWT_ACCESS_SECRET: z
-    .string()
-    .min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
-  JWT_REFRESH_SECRET: z
-    .string()
-    .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
-  JWT_ACCESS_EXPIRES_IN: z
-    .string()
-    .regex(/^\d+[smhd]$/, "Use a format like 15m, 12h, 7d")
-    .default("15m"),
-  JWT_REFRESH_EXPIRES_IN: z
-    .string()
-    .regex(/^\d+[smhd]$/, "Use a format like 15m, 12h, 7d")
-    .default("7d"),
+    JWT_ACCESS_SECRET: z
+      .string()
+      .min(32, "JWT_ACCESS_SECRET must be at least 32 characters"),
+    JWT_REFRESH_SECRET: z
+      .string()
+      .min(32, "JWT_REFRESH_SECRET must be at least 32 characters"),
+    JWT_ACCESS_EXPIRES_IN: z
+      .string()
+      .regex(/^\d+[smhd]$/, "Use a format like 15m, 12h, 7d")
+      .default("15m"),
+    JWT_REFRESH_EXPIRES_IN: z
+      .string()
+      .regex(/^\d+[smhd]$/, "Use a format like 15m, 12h, 7d")
+      .default("7d"),
 
-  IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
+    IMGBB_API_KEY: z.string().min(1, "IMGBB_API_KEY is required"),
 
-  SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
-  SMTP_PORT: z.coerce.number().default(2525),
-  SMTP_USER: z.string().min(1, "SMTP_USER is required"),
-  SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
-  EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
+    // Email: use the Brevo HTTP API (works on hosts that block SMTP ports,
+    // like Render's free plan) or plain SMTP (for example Mailtrap locally).
+    // Brevo is used whenever BREVO_API_KEY is set.
+    BREVO_API_KEY: optionalKey,
+    SMTP_HOST: z.string().min(1, "SMTP_HOST is required"),
+    SMTP_PORT: z.coerce.number().default(2525),
+    SMTP_USER: z.string().min(1, "SMTP_USER is required"),
+    SMTP_PASS: z.string().min(1, "SMTP_PASS is required"),
+    EMAIL_FROM: z.string().min(1, "EMAIL_FROM is required"),
 
-  GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
+    GOOGLE_CLIENT_ID: z.string().min(1, "GOOGLE_CLIENT_ID is required"),
 
-  GEMINI_API_KEY: optionalKey,
-  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
+    GEMINI_API_KEY: optionalKey,
+    GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
 
-  GROQ_API_KEY: optionalKey,
-  GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
+    GROQ_API_KEY: optionalKey,
+    GROQ_MODEL: z.string().default("openai/gpt-oss-120b"),
 
-  // GITHUB_MODELS_TOKEN: optionalKey,
-  // GITHUB_MODEL: z.string().default("gpt-4.1-mini"),
+    // GITHUB_MODELS_TOKEN: optionalKey,
+    // GITHUB_MODEL: z.string().default("gpt-4.1-mini"),
 
-  CLOUDFLARE_ACCOUNT_ID: optionalKey,
-  CLOUDFLARE_API_TOKEN: optionalKey,
-  CLOUDFLARE_MODEL: z
-    .string()
-    .default("@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
-  // Optional: raises the GitHub REST API limit (60 -> 5000 requests/hour)
-  // when importing public repos. Needs no scopes.
-  GITHUB_TOKEN: optionalKey,
-});
+    CLOUDFLARE_ACCOUNT_ID: optionalKey,
+    CLOUDFLARE_API_TOKEN: optionalKey,
+    CLOUDFLARE_MODEL: z
+      .string()
+      .default("@cf/meta/llama-3.3-70b-instruct-fp8-fast"),
+    // Optional: raises the GitHub REST API limit (60 -> 5000 requests/hour)
+    // when importing public repos. Needs no scopes.
+    GITHUB_TOKEN: optionalKey,
+  })
+  .refine(
+    (e) =>
+      Boolean(e.BREVO_API_KEY) ||
+      Boolean(e.SMTP_HOST && e.SMTP_USER && e.SMTP_PASS),
+    {
+      message:
+        "Set BREVO_API_KEY, or all of SMTP_HOST, SMTP_USER and SMTP_PASS",
+      path: ["BREVO_API_KEY"],
+    },
+  );
 
 const parsed = envSchema.safeParse(process.env);
 
